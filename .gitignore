@@ -1,4 +1,4 @@
 GmailAssistant/tokens/
 GmailAssistant/build/
-GmailAssistant/src/test/java/resources/
-GmailAssistant/src/main/java/resources/
+GmailAssistant/src/test/resources/
+GmailAssistant/src/main/resources/

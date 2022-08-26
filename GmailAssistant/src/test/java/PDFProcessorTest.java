@@ -11,7 +11,7 @@ public class PDFProcessorTest {
     @Test
     void testProcessor(){
         File[] files;
-        String resourcePath = "./src/test/java/resources";
+        String resourcePath = "./src/test/resources";
         File dir = new File(resourcePath);
         files = dir.listFiles();
 
