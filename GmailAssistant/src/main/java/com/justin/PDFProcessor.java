@@ -83,6 +83,7 @@ public class PDFProcessor {
          * .chars() creates a stream from a string (with each char being represented as an int)
          * .filter accepts a lambda expression (parameter -> expression) much like python's map? 
          * forgot which function
+         * .count() returns the number of elements within the stream.
          */
         long poundSignCount = line.chars().filter(ch -> ch == '£').count();
         char startChar = line.charAt(0);

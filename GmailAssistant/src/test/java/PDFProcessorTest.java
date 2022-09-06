@@ -27,9 +27,6 @@ public class PDFProcessorTest {
                 System.out.println("Failed to read file: " + files);
             }
         }
-
-
-
     }
     
 }

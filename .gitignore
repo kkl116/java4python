@@ -2,3 +2,8 @@ GmailAssistant/tokens/
 GmailAssistant/build/
 GmailAssistant/src/test/resources/
 GmailAssistant/src/main/resources/
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
