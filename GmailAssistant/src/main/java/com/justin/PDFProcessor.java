@@ -7,18 +7,25 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import org.apache.commons.io.FileUtils;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 public class PDFProcessor {
 
-    public static PDFSummary ExtractText(String pdfPath) throws IOException {
+    public static PDFSummary generateSummary(String pdfPath) throws IOException, Exception {
         try (PDDocument doc = PDDocument.load(new File(pdfPath))) {
             PDFTextStripper textStripper = new PDFTextStripper();
             String extractedText = textStripper.getText(doc);
             String[] lines = extractedText.split("\\r?\\n");
 
             PDFSummary summary = ProcessText(lines);
-
-            return summary;
+            //validate
+            if (summary.validate(pdfPath)){
+                return summary;
+            } else {
+                throw new Exception("Error in processing PDF: " + pdfPath);
+            }
 
         } catch (IOException e) { 
             System.err.println("Failed to read PDF document: " + pdfPath);
@@ -73,7 +80,10 @@ public class PDFProcessor {
             }
         }
 
-        PDFSummary summary = new PDFSummary(dateString, income, expense, incomeTotal, expenseTotal);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        LocalDate date = LocalDate.parse(dateString, formatter);
+
+        PDFSummary summary = new PDFSummary(date, income, expense, incomeTotal, expenseTotal);
 
         return summary;
     }
@@ -113,19 +123,30 @@ public class PDFProcessor {
         String mm = monthMap.get(components[1]);
         String yy = components[components.length - 1];
         return dd + "/" + mm + "/" + yy;
+        
+    }
+
+    public static void generateGlobalSummary(ArrayList<PDFSummary> processed, String outFilePath){
+
+        Double incomeTotalGlobal = processed.stream().mapToDouble(pdf -> pdf.incomeTotal).sum();
+        Double expenseTotalGlobal = processed.stream().mapToDouble(pdf -> pdf.expenseTotal).sum();
+        Double netIncomeGlobal = processed.stream().mapToDouble(pdf -> pdf.netIncome).sum();
+
+        //write to a pdf 
 
     }
 
-    static class PDFSummary{
-        public String date;
+    //implement comparator method here 
+    static class PDFSummary implements Comparable<PDFSummary>{
+        public LocalDate date;
         public ArrayList<String> income; 
         public ArrayList<String> expense;
-        public double incomeTotal; 
-        public double expenseTotal; 
-        public double netIncome;
+        public Double incomeTotal; 
+        public Double expenseTotal; 
+        public Double netIncome;
 
-        public PDFSummary(String _date, ArrayList<String> _income, ArrayList<String> _expense,
-            double _incomeTotal,double _expenseTotal){
+        public PDFSummary(LocalDate _date, ArrayList<String> _income, ArrayList<String> _expense,
+            Double _incomeTotal,Double _expenseTotal){
 
                 date = _date;
                 income = _income; 
@@ -135,7 +156,7 @@ public class PDFProcessor {
                 netIncome = incomeTotal - expenseTotal;
             }
 
-        public ArrayList<String> generateSummary(){
+        public ArrayList<String> generateStringArray(){
             String formatString = "%.2f";
             ArrayList<String> summary = new ArrayList<String>();
 
@@ -162,6 +183,22 @@ public class PDFProcessor {
 
             return summary;
         }
-    }
 
+        public Boolean validate(String fileName){
+            String ansString = fileName.toString().split("£")[1].replace(".pdf", "");
+            Double ansDouble = Double.parseDouble(ansString.replace(",", ""));
+
+            return equalEnough(ansDouble, this.netIncome, 0.5);
+        }
+
+        public static boolean equalEnough(Double a, Double b, Double eps){
+            return Math.abs(a-b)<eps;
+        }
+
+        @Override
+        public int compareTo(PDFSummary other){
+            return this.date.compareTo(other.date);
+        }
+
+    }
 }

@@ -1,6 +1,6 @@
 package com.justin;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.File;
@@ -16,15 +16,15 @@ public class PDFProcessorTest {
         files = dir.listFiles();
 
         for (File file: files){
-            String ansString = file.toString().split("£")[1].replace(".pdf", "");
-            Double ansDouble = Double.parseDouble(ansString.replace(",", ""));
-    
             try {
-                PDFProcessor.PDFSummary summary = PDFProcessor.ExtractText(file.getAbsolutePath());
-                assertEquals(summary.netIncome, ansDouble, 0.5, file.toString() + " was incorrect.");
+                String pdfPath = file.getAbsolutePath();
+                PDFProcessor.PDFSummary summary = PDFProcessor.generateSummary(pdfPath);
+                assertTrue(summary.validate(pdfPath));
 
             } catch (IOException e) {
                 System.out.println("Failed to read file: " + files);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }

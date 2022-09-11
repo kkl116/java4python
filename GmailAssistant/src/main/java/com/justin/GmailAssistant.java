@@ -14,6 +14,10 @@ import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.GmailScopes;
 import com.google.api.services.gmail.model.Message;
+import com.google.api.services.gmail.model.MessagePart;
+import com.google.api.services.gmail.model.MessagePartBody;
+import com.google.api.services.gmail.model.MessagePartHeader;
+import com.justin.PDFProcessor;
 import com.google.api.services.gmail.model.ListMessagesResponse;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -28,7 +32,11 @@ import java.net.URL;
 import java.io.File;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.lang.Character;
+import java.io.FileOutputStream;
+import java.util.Base64;
+import java.util.Collections;
 
 
 public class GmailAssistant {
@@ -87,9 +95,9 @@ public class GmailAssistant {
                 return credential;
         }
 
-        public void main(String[] args) throws IOException, GeneralSecurityException{
+        public static void main(String[] args) throws IOException, GeneralSecurityException{
             // Delete token if found 
-            resetToken();
+            //GmailAssistant.resetToken(TOKENS_DIRECTORY_PATH);
 
             // Build a new authorized API client service.
 
@@ -102,7 +110,7 @@ public class GmailAssistant {
             // me here is a special value to indicate the current authenticated account.
             String user = "me";
             Scanner input = new Scanner(System.in); 
-            Long maxResults = 500L;
+            Long maxResults = 1L;
 
             //initialize builder
             QString qString = new QString();
@@ -134,7 +142,7 @@ public class GmailAssistant {
                     if (options.get(userChoice).equals("Continue")){
                         break;
                     } else if (options.get(userChoice).equals("Exit")) {
-                            System.exit(0);
+                            return;
                     }
 
                     System.out.println(String.format("Please enter query for %s: ", options.getOrDefault(userChoice, "")));
@@ -176,16 +184,73 @@ public class GmailAssistant {
 
             if (messages == null){
                 System.out.println("No messages found.");
-                System.exit(0);
+                return;
             }
 
-            messages.forEach(msg -> {
-                System.out.println(msg.getId());
-            });
+            //create dir based on qString
+            String outDir = "";
+            for (Map.Entry<String, String> entry: qString.parameters.entrySet()){
+                String key = entry.getKey();
+                String value = entry.getValue();
+                if (!value.isEmpty()){
+                    outDir = outDir + value + "_";
+                }
+            }
 
+            outDir = outDir.substring(0, outDir.length()-1);
+            new File(outDir).mkdir();
 
-            //Erase token
-            resetToken();
+            ArrayList<PDFProcessor.PDFSummary> pdfs = new ArrayList<PDFProcessor.PDFSummary>();
+            //process messages - download and put through processor 
+
+            for (Message msg: messages) {
+                String msgId = msg.getId();
+                try{
+                    Message message = service.users().messages().get(user, msgId).execute();
+                    MessagePart payload = message.getPayload();
+                    List<MessagePart> parts = payload.getParts();
+                    List<MessagePartHeader> headers = payload.getHeaders();
+
+                    MessagePart targetPart = null;
+                    String targetFilename = null;
+
+                    for (MessagePart part: parts) {
+                        String filename = part.getFilename();
+                        if (!filename.isEmpty() && filename.contains("Statement")){
+                            targetPart = part;
+                            targetFilename = filename;
+                        }
+                    }
+
+                    MessagePartBody body = targetPart.getBody();
+                    String attachmentId = body.getAttachmentId();
+
+                    MessagePartBody attachment = service.users().messages().attachments().get(user, msgId, attachmentId).execute();
+
+                    byte[] data = attachment.decodeData();
+                    String filepath = outDir + "/" + targetFilename;
+                    
+                    GmailAssistant.bytesArrayToPDF(data, filepath);
+
+                    //read saved pdf and create pdfsummary
+                    try{
+                        PDFProcessor.PDFSummary summary = PDFProcessor.generateSummary(filepath);
+                        pdfs.add(summary);
+                    } catch (Exception e){
+                        e.printStackTrace();
+                    }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            //sort pdfs array by date 
+            Collections.sort(pdfs);
+            
+            //generate global summary
+            
+
         }
 
 
@@ -218,11 +283,28 @@ public class GmailAssistant {
         }
 
     
-    private void resetToken(){
-        File tokenDir = new File(TOKENS_DIRECTORY_PATH);
-        if (tokenDir.exists()){
-            FileUtils.cleanDirectory(tokenDir);
-            FileUtils.deleteDirectory(tokenDir);
+    public static void resetToken(String tokenPath){
+        File tokenDir = new File(tokenPath);
+        try{
+            if (tokenDir.exists()){
+                FileUtils.cleanDirectory(tokenDir);
+                FileUtils.deleteDirectory(tokenDir);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void bytesArrayToPDF(byte[] data, String targetPath){
+        File file = new File(targetPath);
+
+        try (FileOutputStream outputStream = new FileOutputStream(file); ){
+            outputStream.write(data);
+
+            System.out.println(targetPath + " saved.");
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
