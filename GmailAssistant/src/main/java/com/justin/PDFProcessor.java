@@ -10,6 +10,7 @@ import java.util.HashMap;
 import org.apache.commons.io.FileUtils;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.io.FileWriter;
 
 public class PDFProcessor {
 
@@ -126,14 +127,34 @@ public class PDFProcessor {
         
     }
 
-    public static void generateGlobalSummary(ArrayList<PDFSummary> processed, String outFilePath){
+    public static void generateGlobalSummary(ArrayList<PDFSummary> processed, String outFilePath) throws IOException{
 
         Double incomeTotalGlobal = processed.stream().mapToDouble(pdf -> pdf.incomeTotal).sum();
         Double expenseTotalGlobal = processed.stream().mapToDouble(pdf -> pdf.expenseTotal).sum();
         Double netIncomeGlobal = processed.stream().mapToDouble(pdf -> pdf.netIncome).sum();
 
-        //write to a pdf 
+        //check if the file exists 
+        File outFile = new File(outFilePath);
+        if (outFile.exists()){
+            outFile.delete();
+        }
 
+        FileWriter writer = new FileWriter(outFilePath);
+        for (PDFSummary pdf: processed) {
+            for (String line: pdf.generateStringArray()){
+                writer.write(line);
+            }
+        }
+
+        writer.write("Summary: ");
+        writer.write("\n");
+        writer.write("\t Total Income: " + "\t\t\t" + "£" + String.format(PDFSummary.formatString, incomeTotalGlobal));
+        writer.write("\n");
+        writer.write("\t Total Expense: " + "\t\t" + "£" + String.format(PDFSummary.formatString, expenseTotalGlobal)); 
+        writer.write("\n");
+        writer.write("\t Total Net Income: " + "\t\t" + "£" + String.format(PDFSummary.formatString, netIncomeGlobal));
+
+        writer.close();
     }
 
     //implement comparator method here 
@@ -144,6 +165,8 @@ public class PDFProcessor {
         public Double incomeTotal; 
         public Double expenseTotal; 
         public Double netIncome;
+        public static String formatString = "%.2f";
+
 
         public PDFSummary(LocalDate _date, ArrayList<String> _income, ArrayList<String> _expense,
             Double _incomeTotal,Double _expenseTotal){
@@ -163,23 +186,27 @@ public class PDFProcessor {
             summary.add("Statement: " + date);
             summary.add("\n");
             summary.add("Income: ");
+            summary.add("\n");
             for (String line: income){
                 summary.add(line);
+                summary.add("\n");
             }
-            summary.add("\n");
-            summary.add("\t Total Income: \t\t" + "£" + String.format(formatString, incomeTotal));
+            summary.add("\n\n");
+            summary.add("\t Total Income: \t\t\t" + "£" + String.format(formatString, incomeTotal));
 
-            summary.add("\n");
+            summary.add("\n\n");
             summary.add("Expense: ");
+            summary.add("\n");
             for (String line: expense){
                 summary.add(line);
+                summary.add("\n");
             }
-            summary.add("\n");
+            summary.add("\n\n");
             summary.add("\t Total Expense: \t\t" + "£" + String.format(formatString, expenseTotal));
 
             summary.add("\n");
             summary.add("\t Net Income: \t\t\t" + "£" + String.format(formatString, netIncome));
-            summary.add("\n");
+            summary.add("\n\n");
 
             return summary;
         }

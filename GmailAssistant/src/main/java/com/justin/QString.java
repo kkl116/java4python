@@ -7,8 +7,8 @@ public class QString {
 
     //Using linked hashmap here because when you iterate over it it preserves the insertion order
     public Map<String, String> parameters = new LinkedHashMap<String, String>() {{
-        put("sender", "");
-        put("recipient", "");
+        put("from", "");
+        put("to", "");
         put("subject", "");
         put("filename", "");
         put("phrase", "");

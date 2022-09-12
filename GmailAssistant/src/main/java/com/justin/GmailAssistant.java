@@ -36,7 +36,8 @@ import java.util.ArrayList;
 import java.lang.Character;
 import java.io.FileOutputStream;
 import java.util.Base64;
-import java.util.Collections;
+import java.time.format.DateTimeParseException;
+import java.lang.NullPointerException;
 
 
 public class GmailAssistant {
@@ -96,8 +97,8 @@ public class GmailAssistant {
         }
 
         public static void main(String[] args) throws IOException, GeneralSecurityException{
-            // Delete token if found 
-            //GmailAssistant.resetToken(TOKENS_DIRECTORY_PATH);
+            // add shutdown hook for token deletion.
+            GmailAssistant.shutdownHook();
 
             // Build a new authorized API client service.
 
@@ -110,7 +111,7 @@ public class GmailAssistant {
             // me here is a special value to indicate the current authenticated account.
             String user = "me";
             Scanner input = new Scanner(System.in); 
-            Long maxResults = 1L;
+            Long maxResults = 500L;
 
             //initialize builder
             QString qString = new QString();
@@ -126,6 +127,10 @@ public class GmailAssistant {
                 put("6", "(Provide date in YYYY/MM/DD foramt)");
                 put("7", "(Provide date in YYYY/MM/DD format)");
             }};
+
+            //create dir based on qString
+            System.out.println("Please enter results directory name: ");
+            String outDir = input.nextLine();
 
             while (true){
                 System.out.println("Please select an option (Enter the number of the selection): ");
@@ -187,41 +192,53 @@ public class GmailAssistant {
                 return;
             }
 
-            //create dir based on qString
-            String outDir = "";
-            for (Map.Entry<String, String> entry: qString.parameters.entrySet()){
-                String key = entry.getKey();
-                String value = entry.getValue();
-                if (!value.isEmpty()){
-                    outDir = outDir + value + "_";
-                }
-            }
-
             outDir = outDir.substring(0, outDir.length()-1);
             new File(outDir).mkdir();
 
             ArrayList<PDFProcessor.PDFSummary> pdfs = new ArrayList<PDFProcessor.PDFSummary>();
-            //process messages - download and put through processor 
 
+            new File(outDir).mkdir();
+
+            //process messages - download and put through processor 
             for (Message msg: messages) {
                 String msgId = msg.getId();
+                /*
+                wrote this try catch block very poorly. Should really just encapsulate the necessary stuff within the
+                try block so that I can still access everything else.
+                */
                 try{
                     Message message = service.users().messages().get(user, msgId).execute();
                     MessagePart payload = message.getPayload();
                     List<MessagePart> parts = payload.getParts();
                     List<MessagePartHeader> headers = payload.getHeaders();
 
+                    String subject = null;
+
+                    for (MessagePartHeader header: headers){
+                        String field = header.getName();
+                        String value = header.getValue();
+
+                        if (field.equals("Subject")){
+                            subject = value;
+                        }
+                    }
+
                     MessagePart targetPart = null;
                     String targetFilename = null;
 
                     for (MessagePart part: parts) {
                         String filename = part.getFilename();
+
                         if (!filename.isEmpty() && filename.contains("Statement")){
                             targetPart = part;
                             targetFilename = filename;
                         }
                     }
 
+                    if (targetPart == null) {
+                        System.out.println("No target files found in " + subject + ".");
+                        continue;
+                    }
                     MessagePartBody body = targetPart.getBody();
                     String attachmentId = body.getAttachmentId();
 
@@ -236,20 +253,28 @@ public class GmailAssistant {
                     try{
                         PDFProcessor.PDFSummary summary = PDFProcessor.generateSummary(filepath);
                         pdfs.add(summary);
+
                     } catch (Exception e){
-                        e.printStackTrace();
+                        if (e instanceof DateTimeParseException){
+                            System.out.println("Could not parse file: " + filepath + ".");
+                        } else {
+                            e.printStackTrace();
+                        }
                     }
 
                 } catch (IOException e) {
                     e.printStackTrace();
-                }
+
+                } 
             }
 
             //sort pdfs array by date 
             Collections.sort(pdfs);
             
-            //generate global summary
+            //generate global summary and write to file 
+            String summaryPath = outDir + "/summary.txt";
             
+            PDFProcessor.generateGlobalSummary(pdfs, summaryPath);
 
         }
 
@@ -306,5 +331,14 @@ public class GmailAssistant {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+    
+    public static void shutdownHook(){
+        Runtime.getRuntime().addShutdownHook(new Thread(){
+            public void run(){
+                GmailAssistant.resetToken(GmailAssistant.TOKENS_DIRECTORY_PATH);
+                System.out.println("Access token has been deleted.");
+            }
+        });
     }
 }
