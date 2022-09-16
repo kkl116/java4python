@@ -7,6 +7,7 @@ public class QString {
 
     //Using linked hashmap here because when you iterate over it it preserves the insertion order
     public Map<String, String> parameters = new LinkedHashMap<String, String>() {{
+        put("in", "inbox");
         put("from", "");
         put("to", "");
         put("subject", "");
@@ -38,7 +39,7 @@ public class QString {
             String field = entry.getKey();
             String value = entry.getValue();
             if (value.length() > 0) { 
-                queryString = queryString + String.format("%s: %s ", field, value);
+                queryString = queryString + String.format("%s:%s ", field, value);
             }
         }
 

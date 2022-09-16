@@ -127,7 +127,7 @@ public class PDFProcessor {
         
     }
 
-    public static void generateGlobalSummary(ArrayList<PDFSummary> processed, String outFilePath) throws IOException{
+    public static void generateGlobalSummary(ArrayList<PDFSummary> processed, String searchString , String outFilePath) throws IOException{
 
         Double incomeTotalGlobal = processed.stream().mapToDouble(pdf -> pdf.incomeTotal).sum();
         Double expenseTotalGlobal = processed.stream().mapToDouble(pdf -> pdf.expenseTotal).sum();
@@ -140,6 +140,9 @@ public class PDFProcessor {
         }
 
         FileWriter writer = new FileWriter(outFilePath);
+        writer.write("Search Query: " + searchString);
+        writer.write("\n");
+
         for (PDFSummary pdf: processed) {
             for (String line: pdf.generateStringArray()){
                 writer.write(line);

@@ -274,7 +274,7 @@ public class GmailAssistant {
             //generate global summary and write to file 
             String summaryPath = outDir + "/summary.txt";
             
-            PDFProcessor.generateGlobalSummary(pdfs, summaryPath);
+            PDFProcessor.generateGlobalSummary(pdfs, queryString, summaryPath);
 
         }
 
